@@ -1,0 +1,2 @@
+* Advent of Code 2021
+  Too lazy this year, so this time in python.
