@@ -1,6 +1,7 @@
 from pprint import pprint
-from collections import defaultdict, deque
+from collections import defaultdict, deque, Counter
 from itertools import groupby
+from copy import deepcopy
 
 fname = "test.txt"
 fname = "in/12.txt"
@@ -17,64 +18,59 @@ with open(fname) as f:
         if e != "end" and s != "start":
             map[e].append(s)
 
-pprint(map)
+deq = deque(
+    [
+        [
+            "start",
+        ]
+    ]
+)
 
-# The algorithm doesn't terminate.
 
-deq = deque(["start"])
-
-paths = defaultdict(set)
-
-paths["start"] = {("start",)}
-
-while deq:
-    v = deq.pop()
-    for p in paths[v]:
-
-        for dv in map[v]:
-            if dv.islower() and dv in p:
-                continue
-
-            track = (*p, dv)
-
-            if track not in paths[dv]:
-                paths[dv].add(track)
-                deq.append(dv)
-
-for p in sorted(paths["end"]):
-    print(",".join(p))
-
-print(len(paths["end"]))
-
-deq = deque(["start"])
-paths = defaultdict(set)
-paths["start"] = {("start",)}
-
+paths = []
 
 while deq:
-    v = deq.pop()
+    path = deq.pop()
 
-    if v == "end":
-        print(v, len(paths[v]))
+    for v in map[path[-1]]:
+        if v == "end":
+            paths.append([*path, v])
+            continue
 
-    for p in paths[v]:
-        for dv in map[v]:
-            if (
-                dv.islower()
-                and dv in p
-                and any(
-                    len(list(cn)) > 1
-                    for _, cn in groupby(filter(str.islower, sorted(p)))
-                )
+        if v.islower() and len([x for x in path if x == v]) > 0:
+            continue
+
+        deq.append([*path, v])
+
+print(len(paths))
+
+
+deq = deque(
+    [
+        [
+            "start",
+        ]
+    ]
+)
+
+
+paths = []
+
+while deq:
+    path = deq.pop()
+    for v in map[path[-1]]:
+        if v == "end":
+            paths.append([*path, v])
+            continue
+        new_path = [*path, v]
+
+        if v.islower():
+            lower = Counter([x for x in new_path if x.islower()])
+            if len([1 for _, v in lower.items() if v > 1]) > 1 or any(
+                1 for _, v in lower.items() if v > 2
             ):
                 continue
 
-            track = (*p, dv)
-            if track not in paths[dv]:
-                paths[dv].add(track)
-                deq.append(dv)
+        deq.append(new_path)
 
-
-for p in sorted(paths["end"]):
-    print(",".join(p))
-print(len(paths["end"]))
+print(len(paths))
