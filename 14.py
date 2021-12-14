@@ -1,35 +1,38 @@
 from pprint import pprint
 from collections import *
 from itertools import *
-import numpy as np
-
-
-# from copy import deepcopy
-# from bisect import bisect_left
 
 fname = "test.txt"
-# fname = "in/14.txt"
+fname = "in/14.txt"
 
 with open(fname) as f:
-    polymer = np.array([ord(x) for x in f.readline().strip()])
+    inp = f.readline().strip()
+    polymer = Counter(pairwise(inp))
     _ = f.readline()
     rules = {}
     for l in f:
         i, o = l.strip().split(" -> ")
-        rules[tuple([ord(x) for x in i])] = ord(o)
+        rules[tuple(i)] = o
 
-# pprint(rules)
+pprint(dict(polymer))
 
 for _ in range(40):
-    new_polymer = np.empty(polymer.size * 2 - 1, dtype=polymer.dtype)
-    for i, pair in enumerate(pairwise(polymer)):
-        new_polymer[i * 2] = polymer[i]
-        new_polymer[i * 2 + 1] = rules[pair]
-    new_polymer[-1] = polymer[-1]
-    # print(new_polymer)
+    new_polymer = defaultdict(int)
+    for p, c in polymer.items():
+        i = rules[p]
+        new_polymer[(p[0], i)] += c
+        new_polymer[(i, p[1])] += c
     polymer = new_polymer
 
-c = Counter(polymer).most_common()
-# print(c)
+c = defaultdict(int)
 
-print(c[0][1] - c[-1][1])
+for p, i in polymer.items():
+    c[p[0]] += i
+    c[p[1]] += i
+
+c[inp[0]] += 1
+c[inp[-1]] += 1
+
+cmn = Counter(c).most_common()
+
+print((cmn[0][1] - cmn[-1][1]) // 2)
