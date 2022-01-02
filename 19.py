@@ -1,10 +1,13 @@
+from functools import lru_cache
 from itertools import *
 from pprint import pprint
 from math import *
 from collections import *
+from heapq import *
 
-fname = "test.txt"
-# fname = "in/19.txt"
+
+fname = "test/19.txt"
+fname = "in/19.txt"
 
 point = namedtuple("point", ["x", "y", "z"])
 
@@ -23,6 +26,7 @@ def distance(p1, p2):
     return sqrt(pow(p2.x - p1.x, 2) + pow(p2.y - p1.y, 2) + pow(p2.z - p1.z, 2))
 
 
+@lru_cache
 def rotations(p):
     x, y, z = p
     return [
@@ -66,138 +70,114 @@ def sub(p1, p2):
     return point(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z)
 
 
-# def find_offset(p11, p12, p21, p22, skip):
-
-#     for i, (dp21, dp22) in enumerate(zip(rotations(p21), rotations(p22))):
-
-#         if i in skip:
-#             continue
-
-#         dp = sub(dp21, p11)
-#         gp = add(p12, dp)
-
-#         if gp == dp22:
-#             return (i, dp)
-
-#         dp = sub(dp22, p11)
-#         gp = add(p12, dp)
-
-#         if gp == dp21:
-#             return (i, dp)
-
-#     print(p11, p12, p21, p22)
-#     return None, None
-
-
 def find_offset(s1, s2):
-    # BRUTEFORCE
+    h = []
+
+    # The bug is somewhere here
+
     for p1, p2 in product(s1, s2):
+
         for idx, rp2 in enumerate(rotations(p2)):
-            # guess that that's the point
+
             dp = sub(p1, rp2)
-            dr2 = [rotations(p)[idx] for p in s2]
+            dr2 = (rotations(p)[idx] for p in s2)
+
             ds2 = {add(p, dp) for p in dr2}
 
-            over = set(s1) & set(ds2)
+            if len(ds2 & s1) >= 12:
+                heappush(h, (-len(ds2 & s1), (idx, dp)))
+    if len(h) > 0:
+        _, x = heappop(h)
+        return x
 
-            if len(over) >= 12:
-                print(over)
-                return idx, point(dp.x * -1, dp.y * -1, dp.z * -1)
+    print("That should not happen")
+    return None, None
 
+    # h = []
 
-q = deque([0])
+    # for p1, p2 in product(s1, s2):
+    #     for idx, rp1 in enumerate(rotations(p1)):
+
+    #         dp = sub(p2, rp1)
+    #         dr1 = (rotations(p)[idx] for p in s1)
+
+    #         ds1 = {add(p, dp) for p in dr1}
+
+    #         if len(ds1 & s2) >= 12:
+    #             heappush(h, (-len(ds1 & s2), (idx, point(-dp.x, -dp.y, -dp.z))))
+
+    # if len(h) == 0:
+    #     print("That should not happen")
+    #     return None, None
+
+    # _, x = heappop(h)
+    # return x
+
 
 distances = [
     {distance(p1, p2): (p1, p2) for p1, p2 in combinations(s, 2)} for s in data
 ]
 
 
-vv = set()
-
-# for x in range(len(distances)):
-#     for y in range(len(distances)):
-#         xx, yy = sorted([x, y])
-
-#         if xx == yy or (xx, yy) in vv:
-#             continue
-
-#         vv.add((xx, yy))
-
-#         d1, d2 = distances[x], distances[y]
-#         overlap = set(d1) & set(d2)
-
-#         if len(overlap) >= 66:
-#             print(x, y, len(overlap))
-
-
-visited = set((a, b) for (a, b) in zip(range(len(data)), range(len(data))))
+visited = set()
 
 
 def transpose(p, i, dp):
     pr = rotations(p)[i]
-    return sub(pr, dp)
+    return add(pr, dp)
 
+
+def intersections(idx1, distances):
+    s1 = distances[idx1]
+
+    for idx2 in range(0, len(distances)):
+        s2 = distances[idx2]
+
+        if idx1 == idx2:
+            continue
+        if len(set(s1) & set(s2)) >= 66:
+            yield idx1, idx2
+
+
+q = deque(intersections(0, distances))
 
 while q:
-    yy = q.popleft()
-    s1 = distances[yy]
+    idx1, idx2 = q.pop()
 
-    for i in range(0, len(distances)):
-        if (i, yy) in visited or (yy, i) in visited:
-            continue
+    if (idx1, idx2) in visited:
+        continue
 
-        visited.update([(i, yy), (yy, i)])
+    visited.update({(idx2, idx1), (idx1, idx2)})
 
-        s2 = distances[i]
+    s1 = distances[idx1]
+    s2 = distances[idx2]
 
-        overlap = set(s1) & set(s2)
+    overlap = set(s1) & set(s2)
 
-        if len(overlap) < 66:
-            continue
+    overlap_points_1 = {p for k, v in s1.items() for p in v if k in overlap}
+    overlap_points_2 = {p for k, v in s2.items() for p in v if k in overlap}
 
-        overlap_points_1 = set()
-        overlap_points_2 = set()
+    rotation, offset = find_offset(overlap_points_1, overlap_points_2)
+    if rotation is None:
+        continue
 
-        for k, v in s1.items():
-            if k in overlap:
-                overlap_points_1.update(v)
+    for i in range(len(data[idx2])):
+        data[idx2][i] = transpose(data[idx2][i], rotation, offset)
 
-        for k, v in s2.items():
-            if k in overlap:
-                overlap_points_2.update(v)
+    distances[idx2] = {
+        distance(p1, p2): (p1, p2) for p1, p2 in combinations(data[idx2], 2)
+    }
 
-        # skip = set()
+    q.extend(intersections(idx2, distances))
 
-        # for d in overlap:
-        #     idx, dp = find_offset(*s1[d], *s2[d], skip)
+points = {p for s in data for p in s}
 
-        #     if idx is None:
-        #         continue
-
-        #     zz = {transpose(p, idx, dp) for p in overlap_points_2}
-
-        #     if zz == overlap_points_1:
-        #         break
-        #     skip.add(idx)
-        # else:
-        #     continue
-
-        idx, dp = find_offset(overlap_points_1, overlap_points_1)
-
-        for ip, p in enumerate(data[i]):
-            data[i][ip] = transpose(data[i][ip], idx, dp)
-
-        # distances[i] = {
-        #     distance(p1, p2): (p1, p2) for p1, p2 in combinations(data[i], 2)
-        # }
-
-        q.append(i)
-
-
-points = set()
-
-for s in data:
-    for p in s:
-        points.add(p)
+"""
+Wrong answers are:
+- 465
+- 543
+- 573
+- 585
+"""
 
 pprint(len(points))
